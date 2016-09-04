@@ -20,8 +20,13 @@
  * IN THE SOFTWARE.
  */
 
-#define RX_PIN 7
-#define TX_PIN 8
+#define TTN_APP_SESSION_KEY ""
+#define TTN_NETWORK_SESSION_KEY ""
+#define TTN_DEV_ADDR ""
+
+#define RX_PIN 4 /*D4*/
+#define TX_PIN 5 /*D5*/
+#define LED_PIN 13
 #define SERIAL_TIMEOUT 1000
 #define USB_BAUD 57600
 #define LORA_BAUD 57600
@@ -38,34 +43,69 @@ extern "C" { void *__dso_handle = NULL; void *__cxa_atexit = NULL; }
 SoftwareSerial loraSerial(RX_PIN, TX_PIN);
 
 // Counter variable
-uint32_t counter = 0;
+uint32_t counter = 1;
+
+// Global serial buffer
+String serialBuffer = "";
 
 
 /** Helper functions **/
 
-void joinOtaa() {
-    loraSerial.println("mac join otaa");
-}
-
-void sendPacket() {
+/**
+ * Send a counter packet.
+ */
+void sendCounterPacket() {
     Serial.print("Sending packet ");
-    Serial.println(counter, DEC);
-//    loraSerial.print("mac tx uncnf 1 ");
-//    loraSerial.println(counter++, DEC);
+    Serial.print(counter, DEC);
+    Serial.print("... ");
+    loraSerial.print("mac tx uncnf 1 ");
+    loraSerial.println(counter++, DEC);
+    readSerialLine();
+    if (!serialBuffer.startsWith("ok")) {
+        Serial.println(serialBuffer);
+        fail("Could not send packet.");
+    }
+    readSerialLine();
+    if (serialBuffer.startsWith("mac_tx_ok")) {
+        Serial.println("ok");
+    } else {
+        Serial.println(serialBuffer);
+        fail("Sending failed.");
+    }
 }
 
-String readSerialLine() {
-    String data = "";
-    while (true) {
-        while (!loraSerial.available()) {
-            // Wait for data
-        }
-        char inByte = loraSerial.read();
-        data += inByte;
-        if (inByte == '\n') {
-            return data;
+/**
+ * Read a line from serial into the global buffer.
+ */
+void readSerialLine() {
+    serialBuffer = "";
+    while (!loraSerial.available()) {
+        delay(50);
+    }
+    while (loraSerial.available()) {
+        char received = loraSerial.read();
+        serialBuffer += received;
+        if (received == '\n') {
+            return;
         }
     }
+}
+
+/**
+ * Read a line from serial and print it immediately.
+ */
+void readAndPrint() {
+    readSerialLine();
+    Serial.print(serialBuffer);
+}
+
+/**
+ * Fail and stop.
+ */
+void fail(char *msg) {
+    Serial.print("Error: ");
+    Serial.println(msg);
+    while (true); // TODO: Sleep
 }
 
 
@@ -76,43 +116,74 @@ void setup() {
     // Set up USB serial
     Serial.setTimeout(SERIAL_TIMEOUT);
     Serial.begin(USB_BAUD);
-    while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
-    }
+    while (!Serial);
     Serial.println("Hello TTN Mapper!");
 
     // Set up RN2483 serial
     loraSerial.setTimeout(SERIAL_TIMEOUT);
     loraSerial.begin(LORA_BAUD);
 
+    // Reset module
+    Serial.println("Resetting module...  ");
+    loraSerial.print("sys factoryRESET\r\n");
+    readAndPrint();
+
+    // Set network information
+    loraSerial.print("mac set devaddr ");
+    loraSerial.print(TTN_DEV_ADDR);
+    loraSerial.println();
+    readSerialLine();
+    loraSerial.print("mac set appskey ");
+    loraSerial.print(TTN_APP_SESSION_KEY);
+    loraSerial.println();
+    readSerialLine();
+    loraSerial.print("mac set nwkskey ");
+    loraSerial.print(TTN_NETWORK_SESSION_KEY);
+    loraSerial.println();
+    readSerialLine();
+    loraSerial.println("mac save");
+    readSerialLine();
+    
     // Request debug information
-    loraSerial.println("sys get ver");
-    Serial.print("Version: ");
-    Serial.println(readSerialLine());
+    
+    Serial.println("-------------------------------");
     loraSerial.println("sys get vdd");
     Serial.print("Vdd: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
     loraSerial.println("mac get devaddr");
     Serial.print("Devaddr: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
     loraSerial.println("mac get deveui");
     Serial.print("Deveui: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
     loraSerial.println("mac get appeui");
     Serial.print("Appeui: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
     loraSerial.println("mac get status");
     Serial.print("Status: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
     loraSerial.println("radio get sf");
     Serial.print("Sf: ");
-    Serial.println(readSerialLine());
+    readAndPrint();
+    Serial.println("-------------------------------");
 
     // Join network
-//    joinOtaa();
+    loraSerial.println("mac join abp");
+    readSerialLine();
+    if (!serialBuffer.startsWith("ok")) {
+        Serial.println(serialBuffer);
+        fail("Could not join.");
+    }
+    readSerialLine();
+    if (serialBuffer.startsWith("accepted")) {
+        Serial.println("Joined TTN via ABP");
+    } else {
+        Serial.println(serialBuffer);
+        fail("Joining failed.");
+    }
 }
 
 void loop() {
-    sendPacket();
+    sendCounterPacket();
     delay(SECONDS_DELAY * 1000);
 }
