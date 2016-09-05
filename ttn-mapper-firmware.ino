@@ -99,11 +99,36 @@ void readAndPrint() {
 }
 
 /**
+ * Blink LED slowly (100ms delay)
+ */
+void blinkSlow(uint8_t count) {
+    for (int i = 0; i < count; i++) {
+        digitalWrite(13, HIGH);
+        delay(100);
+        digitalWrite(13, LOW);
+        delay(100);
+    }
+}
+
+/**
+ * Blink LED slowly (20ms delay)
+ */
+void blinkFast(uint8_t count) {
+    for (int i = 0; i < count; i++) {
+        digitalWrite(13, HIGH);
+        delay(20);
+        digitalWrite(13, LOW);
+        delay(20);
+    }
+}
+
+/**
  * Fail and stop.
  */
 void fail(char *msg) {
     Serial.print("Error: ");
     Serial.println(msg);
+    blinkFast(50);
     while (true); // TODO: Sleep
 }
 
@@ -112,15 +137,20 @@ void fail(char *msg) {
 
 void setup() {
 
+    // Set up LED pin
+    pinMode(LED_PIN, OUTPUT);
+    blinkSlow(2);
+
     // Set up USB serial
     Serial.setTimeout(SERIAL_TIMEOUT);
     Serial.begin(USB_BAUD);
-    while (!Serial);
+    delay(2000);
     Serial.println("Hello TTN Mapper!");
 
     // Set up RN2483 serial
     loraSerial.setTimeout(SERIAL_TIMEOUT);
     loraSerial.begin(LORA_BAUD);
+    blinkSlow(3);
 
     // Reset module
     Serial.println("Resetting module...  ");
@@ -176,9 +206,12 @@ void setup() {
         Serial.println(serialBuffer);
         fail("Joining failed.");
     }
+
+    blinkSlow(5);
 }
 
 void loop() {
     sendCounterPacket();
+    blinkSlow(3);
     delay(SECONDS_DELAY * 1000);
 }
