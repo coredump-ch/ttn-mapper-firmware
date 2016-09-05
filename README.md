@@ -18,3 +18,7 @@ dashboard.
 
 Then flash `ttn-mapper-firmware.ino` onto your Arduino board using the Arduino
 software.
+
+## License
+
+MIT, see `LICENSE.txt`.
