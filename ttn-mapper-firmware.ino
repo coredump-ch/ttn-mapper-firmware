@@ -20,9 +20,8 @@
  * IN THE SOFTWARE.
  */
 
-#define TTN_APP_SESSION_KEY ""
-#define TTN_NETWORK_SESSION_KEY ""
-#define TTN_DEV_ADDR ""
+#define TTN_APP_EUI ""
+#define TTN_APP_KEY ""
 
 #define RX_PIN 4 /*D4*/
 #define TX_PIN 5 /*D5*/
@@ -129,16 +128,12 @@ void setup() {
     readAndPrint();
 
     // Set network information
-    loraSerial.print("mac set devaddr ");
-    loraSerial.print(TTN_DEV_ADDR);
+    loraSerial.print("mac set appeui ");
+    loraSerial.print(TTN_APP_EUI);
     loraSerial.println();
     readSerialLine();
-    loraSerial.print("mac set appskey ");
-    loraSerial.print(TTN_APP_SESSION_KEY);
-    loraSerial.println();
-    readSerialLine();
-    loraSerial.print("mac set nwkskey ");
-    loraSerial.print(TTN_NETWORK_SESSION_KEY);
+    loraSerial.print("mac set appkey ");
+    loraSerial.print(TTN_APP_KEY);
     loraSerial.println();
     readSerialLine();
     loraSerial.println("mac save");
@@ -168,7 +163,7 @@ void setup() {
     Serial.println("-------------------------------");
 
     // Join network
-    loraSerial.println("mac join abp");
+    loraSerial.println("mac join otaa");
     readSerialLine();
     if (!serialBuffer.startsWith("ok")) {
         Serial.println(serialBuffer);

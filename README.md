@@ -8,4 +8,13 @@ When connected to a battery, the module will send a packet every 15 seconds.
 
 ## Flashing Arduino Nano
 
-Flash `main/main.ino` onto your Arduino board using the Arduino software.
+Edit `ttn-mapper-firmware.ino` and set the following variables:
+
+- `TTN_APP_EUI`
+- `TTN_APP_KEY`
+
+You get these values by creating a new OTA activated device in the TTN
+dashboard.
+
+Then flash `ttn-mapper-firmware.ino` onto your Arduino board using the Arduino
+software.
