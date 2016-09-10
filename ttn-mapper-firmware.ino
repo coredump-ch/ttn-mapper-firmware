@@ -29,6 +29,9 @@
 #define SERIAL_TIMEOUT 1000
 #define USB_BAUD 57600
 #define LORA_BAUD 57600
+#define LORA_SF "sf12"
+#define LORA_PWR 15
+#define LORA_DATA_RATE 0
 #define SECONDS_DELAY 15
 
 #include <SoftwareSerial.h>
@@ -154,7 +157,7 @@ void setup() {
 
     // Reset module
     Serial.println("Resetting module...  ");
-    loraSerial.print("sys factoryRESET\r\n");
+    loraSerial.println("sys factoryRESET");
     readAndPrint();
 
     // Set network information
@@ -168,6 +171,29 @@ void setup() {
     readSerialLine();
     loraSerial.println("mac save");
     readSerialLine();
+
+    // Set radio params
+    Serial.print("Setting SF to ");
+    Serial.print(LORA_SF);
+    Serial.print("... ");
+    loraSerial.print("radio set sf ");
+    loraSerial.print(LORA_SF);
+    loraSerial.println();
+    readAndPrint();
+    Serial.print("Setting power to ");
+    Serial.print(LORA_PWR);
+    Serial.print("... ");
+    loraSerial.print("radio set pwr ");
+    loraSerial.print(LORA_PWR);
+    loraSerial.println();
+    readAndPrint();
+    Serial.print("Setting data rate to ");
+    Serial.print(LORA_DATA_RATE);
+    Serial.print("... ");
+    loraSerial.print("mac set dr ");
+    loraSerial.print(LORA_DATA_RATE);
+    loraSerial.println();
+    readAndPrint();
     
     // Request debug information
     
@@ -187,8 +213,14 @@ void setup() {
     loraSerial.println("mac get status");
     Serial.print("Status: ");
     readAndPrint();
+    loraSerial.println("mac get dr");
+    Serial.print("Data rate: ");
+    readAndPrint();
     loraSerial.println("radio get sf");
     Serial.print("Sf: ");
+    readAndPrint();
+    loraSerial.println("radio get pwr");
+    Serial.print("Output power level: ");
     readAndPrint();
     Serial.println("-------------------------------");
 
