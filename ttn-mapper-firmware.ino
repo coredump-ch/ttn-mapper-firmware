@@ -23,26 +23,19 @@
 #define TTN_APP_EUI ""
 #define TTN_APP_KEY ""
 
-#define RX_PIN 4 /*D4*/
-#define TX_PIN 5 /*D5*/
 #define LED_PIN 13
-#define SERIAL_TIMEOUT 1000
-#define USB_BAUD 57600
+#define SERIAL_TIMEOUT 20000
+#define INFO_BAUD 57600
 #define LORA_BAUD 57600
 #define LORA_SF "sf12"
 #define LORA_PWR 15
 #define LORA_DATA_RATE 0
 #define SECONDS_DELAY 15
 
-#include <SoftwareSerial.h>
+#define INFO_SERIAL Serial
+#define LORA_SERIAL Serial1
+#define CRLF "\r\n"
 
-
-// Needed for SoftwareSerial
-// https://github.com/queezythegreat/arduino-cmake/issues/91
-extern "C" { void *__dso_handle = NULL; void *__cxa_atexit = NULL; }
-
-// Serial port definition
-SoftwareSerial loraSerial(RX_PIN, TX_PIN);
 
 // Counter variable
 uint32_t counter = 1;
@@ -57,40 +50,34 @@ String serialBuffer = "";
  * Send a counter packet.
  */
 void sendCounterPacket() {
-    Serial.print("Sending packet ");
-    Serial.print(counter, DEC);
-    Serial.print("... ");
-    loraSerial.print("mac tx uncnf 1 ");
-    loraSerial.println(counter++, DEC);
+    INFO_SERIAL.print("Sending packet ");
+    INFO_SERIAL.print(counter, DEC);
+    INFO_SERIAL.print("... ");
+    LORA_SERIAL.print("mac tx uncnf 1 ");
+    LORA_SERIAL.print(counter++, DEC);
+    LORA_SERIAL.print(CRLF);
     readSerialLine();
     if (!serialBuffer.startsWith("ok")) {
-        Serial.println(serialBuffer);
+        INFO_SERIAL.println(serialBuffer);
         fail("Could not send packet.");
     }
     readSerialLine();
     if (serialBuffer.startsWith("mac_tx_ok")) {
-        Serial.println("ok");
+        INFO_SERIAL.println("ok");
     } else {
-        Serial.println(serialBuffer);
+        INFO_SERIAL.println(serialBuffer);
         fail("Sending failed.");
     }
 }
 
 /**
  * Read a line from serial into the global buffer.
+ * 
+ * Does not include newline character.
  */
 void readSerialLine() {
     serialBuffer = "";
-    while (!loraSerial.available()) {
-        delay(50);
-    }
-    while (loraSerial.available()) {
-        char received = loraSerial.read();
-        serialBuffer += received;
-        if (received == '\n') {
-            return;
-        }
-    }
+    serialBuffer = LORA_SERIAL.readStringUntil('\n');
 }
 
 /**
@@ -98,7 +85,7 @@ void readSerialLine() {
  */
 void readAndPrint() {
     readSerialLine();
-    Serial.print(serialBuffer);
+    INFO_SERIAL.println(serialBuffer);
 }
 
 /**
@@ -129,8 +116,8 @@ void blinkFast(uint8_t count) {
  * Fail and stop.
  */
 void fail(char *msg) {
-    Serial.print("Error: ");
-    Serial.println(msg);
+    INFO_SERIAL.print("Error: ");
+    INFO_SERIAL.println(msg);
     blinkFast(50);
     while (true); // TODO: Sleep
 }
@@ -145,97 +132,100 @@ void setup() {
     blinkSlow(2);
 
     // Set up USB serial
-    Serial.setTimeout(SERIAL_TIMEOUT);
-    Serial.begin(USB_BAUD);
+    INFO_SERIAL.setTimeout(SERIAL_TIMEOUT);
+    INFO_SERIAL.begin(INFO_BAUD);
     delay(2000);
-    Serial.println("Hello TTN Mapper!");
+    INFO_SERIAL.println("Hello TTN Mapper!");
 
     // Set up RN2483 serial
-    loraSerial.setTimeout(SERIAL_TIMEOUT);
-    loraSerial.begin(LORA_BAUD);
+    LORA_SERIAL.setTimeout(SERIAL_TIMEOUT);
+    LORA_SERIAL.begin(LORA_BAUD);
     blinkSlow(3);
 
     // Reset module
-    Serial.println("Resetting module...  ");
-    loraSerial.println("sys factoryRESET");
+    INFO_SERIAL.println("Resetting module...  ");
+    LORA_SERIAL.print("sys factoryRESET\r\n");
     readAndPrint();
 
     // Set network information
-    loraSerial.print("mac set appeui ");
-    loraSerial.print(TTN_APP_EUI);
-    loraSerial.println();
+    LORA_SERIAL.print("mac set appeui ");
+    LORA_SERIAL.print(TTN_APP_EUI);
+    LORA_SERIAL.print(CRLF);
     readSerialLine();
-    loraSerial.print("mac set appkey ");
-    loraSerial.print(TTN_APP_KEY);
-    loraSerial.println();
+    LORA_SERIAL.print("mac set appkey ");
+    LORA_SERIAL.print(TTN_APP_KEY);
+    LORA_SERIAL.print(CRLF);
     readSerialLine();
-    loraSerial.println("mac save");
+    LORA_SERIAL.print("mac save\r\n");
     readSerialLine();
 
     // Set radio params
-    Serial.print("Setting SF to ");
-    Serial.print(LORA_SF);
-    Serial.print("... ");
-    loraSerial.print("radio set sf ");
-    loraSerial.print(LORA_SF);
-    loraSerial.println();
+/*    INFO_SERIAL.print("Setting SF to ");
+    INFO_SERIAL.print(LORA_SF);
+    INFO_SERIAL.print("... ");
+    LORA_SERIAL.print("radio set sf ");
+    LORA_SERIAL.print(LORA_SF);
+    LORA_SERIAL.print(CRLF);
     readAndPrint();
-    Serial.print("Setting power to ");
-    Serial.print(LORA_PWR);
-    Serial.print("... ");
-    loraSerial.print("radio set pwr ");
-    loraSerial.print(LORA_PWR);
-    loraSerial.println();
+    INFO_SERIAL.print("Setting power to ");
+    INFO_SERIAL.print(LORA_PWR);
+    INFO_SERIAL.print("... ");
+    LORA_SERIAL.print("radio set pwr ");
+    LORA_SERIAL.print(LORA_PWR);
+    LORA_SERIAL.print(CRLF);
     readAndPrint();
-    Serial.print("Setting data rate to ");
-    Serial.print(LORA_DATA_RATE);
-    Serial.print("... ");
-    loraSerial.print("mac set dr ");
-    loraSerial.print(LORA_DATA_RATE);
-    loraSerial.println();
-    readAndPrint();
+    INFO_SERIAL.print("Setting data rate to ");
+    INFO_SERIAL.print(LORA_DATA_RATE);
+    INFO_SERIAL.print("... ");
+    LORA_SERIAL.print("mac set dr ");
+    LORA_SERIAL.print(LORA_DATA_RATE);
+    LORA_SERIAL.print(CRLF);
+    readAndPrint();*/
     
     // Request debug information
-    
+
     Serial.println("-------------------------------");
-    loraSerial.println("sys get vdd");
-    Serial.print("Vdd: ");
+    LORA_SERIAL.print("sys get vdd\r\n");
+    INFO_SERIAL.print("Vdd: ");
     readAndPrint();
-    loraSerial.println("mac get devaddr");
-    Serial.print("Devaddr: ");
+    LORA_SERIAL.print("mac get devaddr\r\n");
+    INFO_SERIAL.print("Devaddr: ");
     readAndPrint();
-    loraSerial.println("mac get deveui");
-    Serial.print("Deveui: ");
+    LORA_SERIAL.print("mac get deveui\r\n");
+    INFO_SERIAL.print("Deveui: ");
     readAndPrint();
-    loraSerial.println("mac get appeui");
-    Serial.print("Appeui: ");
+    LORA_SERIAL.print("mac get appeui\r\n");
+    INFO_SERIAL.print("Appeui: ");
     readAndPrint();
-    loraSerial.println("mac get status");
-    Serial.print("Status: ");
+    LORA_SERIAL.print("mac get status\r\n");
+    INFO_SERIAL.print("Status: ");
     readAndPrint();
-    loraSerial.println("mac get dr");
-    Serial.print("Data rate: ");
+    LORA_SERIAL.print("mac get dr\r\n");
+    INFO_SERIAL.print("Data rate: ");
     readAndPrint();
-    loraSerial.println("radio get sf");
-    Serial.print("Sf: ");
+    LORA_SERIAL.print("radio get sf\r\n");
+    INFO_SERIAL.print("Sf: ");
     readAndPrint();
-    loraSerial.println("radio get pwr");
-    Serial.print("Output power level: ");
+    LORA_SERIAL.print("radio get pwr\r\n");
+    INFO_SERIAL.print("Output power level: ");
     readAndPrint();
-    Serial.println("-------------------------------");
+    INFO_SERIAL.println("-------------------------------");
 
     // Join network
-    loraSerial.println("mac join otaa");
+    INFO_SERIAL.println("Joining via OTAA...");
+    LORA_SERIAL.print("mac join otaa\r\n");
     readSerialLine();
-    if (!serialBuffer.startsWith("ok")) {
-        Serial.println(serialBuffer);
+    if (serialBuffer.startsWith("ok")) {
+        INFO_SERIAL.print("Joining in process... ");
+    } else {
+        INFO_SERIAL.println(serialBuffer);
         fail("Could not join.");
     }
     readSerialLine();
+    INFO_SERIAL.println(serialBuffer);
     if (serialBuffer.startsWith("accepted")) {
-        Serial.println("Joined TTN via ABP");
+        INFO_SERIAL.println("Joined TTN via OTAA");
     } else {
-        Serial.println(serialBuffer);
         fail("Joining failed.");
     }
 
@@ -246,4 +236,7 @@ void loop() {
     sendCounterPacket();
     blinkSlow(3);
     delay(SECONDS_DELAY * 1000);
+    LORA_SERIAL.print("sys get vdd\r\n");
+    INFO_SERIAL.print("Vdd: ");
+    readAndPrint();
 }
