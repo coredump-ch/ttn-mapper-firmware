@@ -6,7 +6,7 @@ http://ttnmapper.org/
 
 When connected to a battery, the module will send a packet every 15 seconds.
 
-![Photo of a node](https://raw.github.com/coredump-ch/ttn-mapper-firmware/master/node.jpg)
+![Photo of a node](https://raw.github.com/coredump-ch/ttn-mapper-firmware/master/arduino/node.jpg)
 
 ## Flashing Arduino Nano
 
