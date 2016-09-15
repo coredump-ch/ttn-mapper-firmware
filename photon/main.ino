@@ -47,12 +47,28 @@ void setup() {
 
 void loop() {
     Serial.printlnf("Sending packet %d:", counter++);
-    sendcmd("mac tx uncnf 1 42");
+    String submitted = sendcmd("mac tx uncnf 1 42");
+    if (!submitted.startsWith("ok")) {
+        blink(1, 50);
+        delay(1000);
+        return;
+    }
+    while (!Serial1.available()) {
+        delay(20);
+    }
+    String sent = Serial1.readStringUntil('\n');
+    Serial.print("< ");
+    Serial.println(sent);
+    if (!sent.startsWith("mac_tx_ok")) {
+        blink(1, 50);
+        delay(1000);
+        return;
+    }
     blink(7, 30);
     delay(1000 * LOOP_DELAY_SECONDS);
 }
 
-String sendcmd_silent(String data){
+String sendcmd_silent(String data) {
     Serial1.println(data); 
     while (!Serial1.available()) {
         delay(20);
@@ -60,13 +76,21 @@ String sendcmd_silent(String data){
     return Serial1.readStringUntil('\n');
 }
 
-void sendcmd(String data){
+String sendcmd(String data) {
     Serial.println("> " + data);
     Serial1.println(data); 
     while (!Serial1.available()) {
         delay(20);
     }
-    Serial.println("< " + Serial1.readStringUntil('\n'));
+    String line = Serial1.readStringUntil('\n');
+    Serial.println("< " + line);
+    return line;
+}
+
+void fail(String msg) {
+    Serial.print("Failed: ");
+    Serial.println(msg);
+    blink(30, 30);
 }
 
 void RN2483_init() {
@@ -94,18 +118,36 @@ void RN2483_init() {
     sendcmd("mac get dr");
     sendcmd("radio get pwr");
 
-    Serial.println("\r\nJoin the network...");
-    Serial.println("> mac join otaa");
-    String connecting = sendcmd_silent("mac join otaa");
-    Serial.print("< ");
-    Serial.println(connecting);
-    while (!Serial1.available()) {
-        delay(20);
+    // Join the network via OTAA
+    // Try until succeeded
+    bool success = false;
+    while (!success) {
+        Serial.println("\r\nJoin the network...");
+        Serial.println("> mac join otaa");
+        String connecting = sendcmd_silent("mac join otaa");
+        Serial.print("< ");
+        if (!connecting.startsWith("ok")) {
+            blink(1, 50);
+            delay(1000);
+            continue;
+        }
+        Serial.println(connecting);
+        while (!Serial1.available()) {
+            delay(20);
+        }
+        String joined = Serial1.readStringUntil('\n');
+        if (!joined.startsWith("accepted")) {
+            blink(1, 50);
+            delay(1000);
+            continue;
+        }
+        Serial.print("< ");
+        Serial.println(joined);
+        success = true;
+        blink(2, 800);
     }
-    String joined = Serial1.readStringUntil('\n');
-    Serial.print("< ");
-    Serial.println(joined);
-    blink(2, 800);
+
+    Serial.println();
 }
 
 void blink(uint8_t count, uint32_t msDelay) {
